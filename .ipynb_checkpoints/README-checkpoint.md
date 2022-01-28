@@ -3,10 +3,6 @@
 
 # Overview
 
-This is a classification project for predicting whether asteroids are non-hazardous or potentially hazardous (PHAs) based on their various features. 
-
-# Background
-
 Asteroids are rocky bodies that come in a variety of sizes, ranging from just a few meters to hundreds of kilometers in diameter. Although the chance of a particular asteroid impacting the earth in the short term is quite low, a major impact is inevitable on the scale of millenia. We are all familiar with the asteroid impact that caused a global extinction event in the Middle Miocene period about 16 million years ago. Thankfully, these events seem to occur on a 26 million year cycle. The main poster child of planetary defense is the Tsunguska Event of 1908, in which a 10,000 metric ton asteroid exploded over Sibera, Russia with the energy of 2,000 Hiroshima-sized nuclear weapons. The Tsunguska Event is a better example of the types of impacts we may have to contend with in the near future. An updated understanding of Tsunguska and other events has inspired modern efforts to detect and track potentially hazardous asteroids.  
 
 Methods that are currently being studied for impact mitigation include:
@@ -134,9 +130,64 @@ Attempted classification models:
 - Decision Tree
 - Random Forest
 
-## Best performing model: Random Forest
+## Logistic Regression
 
-Random forest was the best performing model for this dataset. Standard scaling was performed on the data prior to instantiating any forests. The overfit baseline model had a mean `max_depth` of 27, so values less than 27 were gridsearched along with `class_weight` and `min_samples_leaf` in the iterations to follow. `min_samples_split` = 2 was used for all iterations because this was the best value from the decision tree gridsearches (it is also the lowest possible value), and one one expect the trees in a random forest to be more grown out than a single decision tree model. Iteration 3 showed the same recall score for the positive class as Iteration 2, but the number of false positives increased from 97 to 489. Continuing to gridsearch with lower values for `max_depth` seemed to reduce precision with no increase in recall. Iteration 4 omitted `max_depth` = 6, the lowest value, in order to grow out the trees and help address the high number of false positives. Iteration 4 was the best-performing iteration.
+The last dummy variable for `class` was dropped as part of an additional preprocessing step for logistic regression.
+The baseline model was overfit to the training data, due to using SMOTE to address class imbalance. Adjusting the `class_weight` parameter instead of using SMOTE seemed to address overfitting. Outliers were removed from the features with the heighest weights in Iteration 2, and the cleaned dataframe from this step was used in the tree-based models. A multicolinearity check revealed that many features were highly correlated with each other, with most pairs having correlation above 0.94. Removal of these features along with outliers improved model performance slightly.
+
+#### Best performing logistic regression model: Iteration 5
+
+Params:
+
+- `solver` = 'liblinear'
+- `C` = 1e25
+- `max_iter` = 1000
+- `class_weight` = {0:1, 1:100}
+
+Classification reports (train and test data):
+
+![](Images/LR-report.png)
+
+Confusion matrix:
+
+![](Images/LR-matrix.png)
+
+After comparing Iteration 5 (no outliers or overfitting) with a baseline decision tree, it was clear that logistic regression was not going to be the best-performaing model for this dataset. Although logistic regression reached a score of 1.00 for recall, precision and F1 were low in comparison. Also, the confusion matrix showed 696 false positives. It was likely that tuning the decision tree could bring recall for the positive class to a similar score with fewer false positives. 
+
+## Decision Tree
+
+The data used for the tree models omitted outliers in the highest-weighted features from the logistic regression model. Standard scaling was included in the pipeline for each iteration, which shifted the feature means to 0 with a standard deviation of 1. The baseline model was overfit and had a `max_depth` of 18. Iterations 2-4 implemented tree pruning by searching for `max_depth` values less than 18 as well as larger values for `min_samples_leaf` and `min_samples_split` while prioritizing recall (`True Positives / (True Positives + False Negatives)`). The objective here was to correctly identify as many asteroids that are truly potentially hazardous as possible, i.e. minimize false negatives. At Iteration 4, continuing to gridsearch while prioritizing recall only increased the number of false positives (non-hazardous asteroids misclassified as potentially hazardous) with no benefit to recall. Therefore, Iteration 3 was the best decision tree.
+
+#### Best performing decision tree: Iteration 3
+
+Best params:
+
+- `class_weight` = 'balanced`
+- `max_depth` = 4
+- `min_samples_leaf` = 7
+- `min_samples_split` = 2
+
+Classification reports (train and test data):
+
+![](Images/DT-report.png)
+
+Confusion matrix:
+
+![](Images/DT-matrix.png)
+
+Feature importances:
+
+![](Images/DT-importances.png)
+
+`H` and `moid_ld` are the only features that seem to have a real signal on this plot. 
+
+Tree:
+
+![](Images/decision-tree.png)
+
+## Random Forest
+
+Random forest was the best performing model for this dataset. Standard scaling was performed on the data prior to instantiating any random forests. The overfit baseline model had a mean `max_depth` of 27, so values less than 27 were gridsearched along with `class_weight` and `min_samples_leaf` in the iterations to follow. `min_samples_split` = 2 was used for all iterations because this was the best value from the decision tree gridsearches (it is also the lowest possible value), and one one expect the trees in a random forest to be more grown out than a single decision tree model. Iteration 3 showed the same recall score for the positive class as Iteration 2, but the number of false positives increased from 97 to 489. Like with the decision tree, continuing to gridsearch with lower values for `max_depth` seemed to reduce precision with no increase in recall. Iteration 4 omitted `max_depth` = 6, the lowest value, in order to grow out the trees and help address the high number of false positives. Iteration 4 was the best-performing iteration.
 
 #### Best performing Random Forest: Iteration 4
 
